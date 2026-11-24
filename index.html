@@ -454,7 +454,7 @@ const MSGS = [
 const KEY = "cartas-decisiones-v1";
 const $ = id => document.getElementById(id);
 const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-const PROBAR = location.hash === "#probar";
+const PROBAR = false; // versión pública: sin modo de revisión
 let uid = 0;
 
 function rnd(seed) { let s = seed; return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; }; }
@@ -551,9 +551,21 @@ function randIndex() {
   catch (e) { return Math.floor(Math.random() * MSGS.length); }
 }
 
+function okIdx(v) { return Number.isInteger(v) && v >= 0 && v < MSGS.length ? v : null; }
 function saved() {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || "null"); if (v && Number.isInteger(v.i) && v.i >= 0 && v.i < MSGS.length) return v.i; } catch (e) {}
-  return null;
+  let v = null;
+  try { const o = JSON.parse(localStorage.getItem(KEY) || "null"); if (o) v = okIdx(o.i); } catch (e) {}
+  if (v === null) { try { const o = JSON.parse(sessionStorage.getItem(KEY) || "null"); if (o) v = okIdx(o.i); } catch (e) {} }
+  if (v === null) { try { const m = document.cookie.match(new RegExp("(?:^|; )" + KEY + "=(\\d+)")); if (m) v = okIdx(+m[1]); } catch (e) {} }
+  if (v === null) { try { const m = String(window.name).match(new RegExp("^" + KEY + ":(\\d+)$")); if (m) v = okIdx(+m[1]); } catch (e) {} }
+  if (v !== null) store(v);
+  return v;
+}
+function store(i) {
+  try { localStorage.setItem(KEY, JSON.stringify({ i, t: Date.now() })); } catch (e) {}
+  try { sessionStorage.setItem(KEY, JSON.stringify({ i })); } catch (e) {}
+  try { document.cookie = KEY + "=" + i + "; max-age=31536000; path=/; SameSite=Lax"; } catch (e) {}
+  try { window.name = KEY + ":" + i; } catch (e) {}
 }
 
 function buildFan() {
@@ -617,7 +629,7 @@ function reveal(i, animate) {
 function pick() {
   if ($("fan").classList.contains("picked")) return;
   const i = randIndex();
-  if (!PROBAR) { try { localStorage.setItem(KEY, JSON.stringify({ i, t: Date.now() })); } catch (e) {} }
+  if (!PROBAR) store(i);
   $("skip").hidden = true;
   reveal(i, true);
 }
